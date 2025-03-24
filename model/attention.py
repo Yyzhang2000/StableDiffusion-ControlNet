@@ -26,11 +26,11 @@ class SelfAttention(nn.Module):
             self.in_proj(x).chunk(3, dim=-1),
         )
 
-        score = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_head)
+        score = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.d_head)
 
         if causal_mask:
-            mask = torch.ones_like(score).triu(1)
-            score = score.masked_fill(mask == 1, float("-inf"))
+            mask = torch.ones_like(score, dtype=torch.bool).triu(1)
+            score = score.masked_fill(mask, -torch.inf)
 
         score = F.softmax(score, dim=-1)
         attn = torch.matmul(score, v).transpose(1, 2).contiguous().view(B, T, C)
@@ -67,10 +67,10 @@ class CrossAttention(nn.Module):
 
         interim_shape = (B, -1, self.n_heads, self.d_head)
 
-        q = self.q_proj(x).view(*interim_shape).transpose(1, 2)
+        q = self.q_proj(x).view(interim_shape).transpose(1, 2)
 
         k, v = map(
-            lambda t: t.view(B, -1, self.n_heads, self.d_head).transpose(1, 2),
+            lambda t: t.view(interim_shape).transpose(1, 2),
             (self.k_proj(y), self.v_proj(y)),
         )
 

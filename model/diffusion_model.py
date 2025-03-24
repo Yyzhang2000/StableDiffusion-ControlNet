@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from attention import SelfAttention, CrossAttention
-from model_config import ModelConfig
+from .attention import SelfAttention, CrossAttention
+from .model_config import ModelConfig
 
 
 class TimeEmbedding(nn.Module):
@@ -11,7 +11,7 @@ class TimeEmbedding(nn.Module):
         super().__init__()
 
         self.linear_1 = nn.Linear(config.n_embed, 4 * config.n_embed)
-        self.linear_2 = nn.Linear(4 * config.n_embed, config.n_embed)
+        self.linear_2 = nn.Linear(4 * config.n_embed, 4 * config.n_embed)
 
     def forward(self, t):
         t = F.silu(self.linear_1(t))
@@ -45,16 +45,16 @@ class UNET_ResidualBlock(nn.Module):
         h = feature
 
         feature = F.silu(self.groupnorm_feature(feature))
-        feature = F.silu(self.conv_feature(feature))
+        feature = self.conv_feature(feature)
 
-        time = self.linear_time(time)
-        time = time.unsqueeze(-1).unsqueeze(-1)
-        feature = feature + time
+        time = self.linear_time(F.silu(time))
 
-        feature = F.silu(self.groupnorm_merged(feature))
-        feature = self.conv_merged(feature)
+        merged = feature + time.unsqueeze(-1).unsqueeze(-1)
 
-        return self.residual_layer(h) + feature
+        merged = F.silu(self.groupnorm_merged(merged))
+        merged = self.conv_merged(merged)
+
+        return self.residual_layer(h) + merged
 
 
 class UNET_AttentionBlock(nn.Module):
@@ -85,7 +85,7 @@ class UNET_AttentionBlock(nn.Module):
 
         B, C, H, W = x.shape
         x = x.view(B, C, H * W)
-        x = x.permute(0, 2, 1)
+        x = x.transpose(-1, -2)
 
         residue_short = x
 

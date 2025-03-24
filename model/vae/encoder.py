@@ -2,12 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-from blocks import VAE_AttentionBlock, VAE_ResidualBlock
+from .blocks import VAE_AttentionBlock, VAE_ResidualBlock
 
 
 class VAE_Encoder(nn.Sequential):
-    def __inti__(self):
+    def __init__(self):
         super().__init__(
             nn.Conv2d(3, 128, kernel_size=3, padding=1),
             VAE_ResidualBlock(128, 128),

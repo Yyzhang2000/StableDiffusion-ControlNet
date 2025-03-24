@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from attention import SelfAttention
-from model_config import ModelConfig
+from .attention import SelfAttention
+from .model_config import ModelConfig
 
 
 class CLIPEmbedding(nn.Module):
@@ -33,8 +33,8 @@ class CLIPLayer(nn.Module):
 
         self.layernorm_2 = nn.LayerNorm(config.n_embed)
 
-        self.linear_1 = nn.Linear(config.n_embed, config.n_embed)
-        self.linear_2 = nn.Linear(config.n_embed, config.n_embed)
+        self.linear_1 = nn.Linear(config.n_embed, 4 * config.n_embed)
+        self.linear_2 = nn.Linear(4 * config.n_embed, config.n_embed)
 
     def forward(self, x):
         h = x
@@ -46,9 +46,10 @@ class CLIPLayer(nn.Module):
         h = x
 
         x = self.layernorm_2(x)
+        x = self.linear_1(x)
         x *= torch.sigmoid(1.702 * x)  # Quick implementation of GELU
 
-        x = self.linear_1(x)
+        x = self.linear_2(x)
 
         x = h + x
         return x
@@ -59,7 +60,7 @@ class CLIP(nn.Module):
         super().__init__()
 
         self.embedding = CLIPEmbedding(config)
-        self.layers = nn.ModuleList([CLIPLayer(config) for _ in range(config.n_token)])
+        self.layers = nn.ModuleList([CLIPLayer(config) for _ in range(config.n_layer)])
 
         self.layernorm = nn.LayerNorm(config.n_embed)
 
